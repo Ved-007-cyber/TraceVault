@@ -3,7 +3,7 @@ import Link from "next/link";
 interface StatCardProps {
   title: string;
   value: number;
-  href: string;
+  href?: string;
 }
 
 export default function StatCard({
@@ -11,19 +11,21 @@ export default function StatCard({
   value,
   href,
 }: StatCardProps) {
-  return (
-    <Link href={href}>
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-cyan-400 transition">
+  const card = (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-cyan-400 transition">
+      <h3 className="text-slate-400">
+        {title}
+      </h3>
 
-        <h3 className="text-slate-400">
-          {title}
-        </h3>
-
-        <p className="text-4xl font-bold mt-2 text-white">
-          {value}
-        </p>
-
-      </div>
-    </Link>
+      <p className="text-4xl font-bold mt-2 text-white">
+        {value}
+      </p>
+    </div>
   );
+
+  if (href) {
+    return <Link href={href}>{card}</Link>;
+  }
+
+  return card;
 }

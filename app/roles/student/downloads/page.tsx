@@ -2,70 +2,64 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import Sidebar from "@/components/Sidebar";
+import StudentSidebar from "@/components/StudentSidebar";
 
-export default function AuditPage() {
-  const [logs, setLogs] = useState<any[]>([]);
+export default function DownloadsPage() {
+  const [downloads, setDownloads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLogs();
+    loadDownloads();
   }, []);
 
-  async function loadLogs() {
-    const { data, error } = await supabase
-      .from("audit_logs")
+  async function loadDownloads() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { data: downloadsData, error } = await supabase
+      .from("downloads")
       .select("*")
-      .order("created_at", { ascending: false });
+      .eq("user_id", user.id)
+      .order("downloaded_at", { ascending: false });
 
-    console.log("AUDIT DATA:", data);
-    console.log("AUDIT ERROR:", error);
-
-    if (error || !data) {
+    if (error || !downloadsData) {
       setLoading(false);
       return;
     }
 
-    const enrichedLogs = await Promise.all(
-      data.map(async (log) => {
-        const { data: document } = await supabase
+    const enrichedData = await Promise.all(
+      downloadsData.map(async (item) => {
+        const { data: doc } = await supabase
           .from("documents")
           .select("title")
-          .eq("document_id", log.document_id)
-          .single();
-
-        const { data: student } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", log.user_id)
+          .eq("document_id", item.document_id)
           .single();
 
         return {
-          ...log,
-          documentTitle:
-            document?.title || log.document_id,
-          studentName:
-            student?.full_name || "Unknown",
+          ...item,
+          title: doc?.title || item.document_id,
         };
       })
     );
 
-    setLogs(enrichedLogs);
+    setDownloads(enrichedData);
     setLoading(false);
   }
 
   return (
     <div className="flex min-h-screen bg-slate-950">
-      <Sidebar />
+      <StudentSidebar />
 
       <main className="flex-1 p-10 text-white">
         <h1 className="text-5xl font-bold mb-8">
-          Audit Trail
+          Download History
         </h1>
 
         <div className="bg-slate-900 rounded-xl overflow-hidden">
           <table className="w-full">
-
             <thead>
               <tr className="border-b border-slate-800">
                 <th className="p-4 text-left">
@@ -73,68 +67,49 @@ export default function AuditPage() {
                 </th>
 
                 <th className="p-4 text-left">
-                  Student
-                </th>
-
-                <th className="p-4 text-left">
-                  Action
-                </th>
-
-                <th className="p-4 text-left">
-                  Time
+                  Downloaded At
                 </th>
               </tr>
             </thead>
 
             <tbody>
-
               {loading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={2}
                     className="p-6 text-center"
                   >
                     Loading...
                   </td>
                 </tr>
-              ) : logs.length === 0 ? (
+              ) : downloads.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={2}
                     className="p-6 text-center"
                   >
-                    No Activity Found
+                    No downloads found
                   </td>
                 </tr>
               ) : (
-                logs.map((log, index) => (
+                downloads.map((item: any) => (
                   <tr
-                    key={index}
+                    key={item.download_id}
                     className="border-b border-slate-800"
                   >
                     <td className="p-4">
-                      {log.documentTitle}
-                    </td>
-
-                    <td className="p-4">
-                      {log.studentName}
-                    </td>
-
-                    <td className="p-4">
-                      {log.action}
+                      {item.title}
                     </td>
 
                     <td className="p-4">
                       {new Date(
-                        log.created_at
+                        item.downloaded_at
                       ).toLocaleString()}
                     </td>
                   </tr>
                 ))
               )}
-
             </tbody>
-
           </table>
         </div>
       </main>

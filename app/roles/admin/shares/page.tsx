@@ -2,72 +2,46 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import Sidebar from "@/components/Sidebar";
+import AdminSidebar from "@/components/AdminSidebar";
 
-export default function AuditPage() {
-  const [logs, setLogs] = useState<any[]>([]);
+export default function SharesPage() {
+  const [shares, setShares] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLogs();
+    loadShares();
   }, []);
 
-  async function loadLogs() {
+  async function loadShares() {
     const { data, error } = await supabase
-      .from("audit_logs")
+      .from("sharelinks")
       .select("*")
       .order("created_at", { ascending: false });
 
-    console.log("AUDIT DATA:", data);
-    console.log("AUDIT ERROR:", error);
-
-    if (error || !data) {
-      setLoading(false);
-      return;
+    if (!error && data) {
+      setShares(data);
     }
 
-    const enrichedLogs = await Promise.all(
-      data.map(async (log) => {
-        const { data: document } = await supabase
-          .from("documents")
-          .select("title")
-          .eq("document_id", log.document_id)
-          .single();
-
-        const { data: student } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", log.user_id)
-          .single();
-
-        return {
-          ...log,
-          documentTitle:
-            document?.title || log.document_id,
-          studentName:
-            student?.full_name || "Unknown",
-        };
-      })
-    );
-
-    setLogs(enrichedLogs);
     setLoading(false);
   }
 
   return (
     <div className="flex min-h-screen bg-slate-950">
-      <Sidebar />
+      <AdminSidebar />
 
       <main className="flex-1 p-10 text-white">
+
         <h1 className="text-5xl font-bold mb-8">
-          Audit Trail
+          Shared Files Monitoring
         </h1>
 
         <div className="bg-slate-900 rounded-xl overflow-hidden">
+
           <table className="w-full">
 
             <thead>
               <tr className="border-b border-slate-800">
+
                 <th className="p-4 text-left">
                   Document
                 </th>
@@ -77,12 +51,21 @@ export default function AuditPage() {
                 </th>
 
                 <th className="p-4 text-left">
-                  Action
+                  Faculty
                 </th>
 
                 <th className="p-4 text-left">
-                  Time
+                  Permission
                 </th>
+
+                <th className="p-4 text-left">
+                  Status
+                </th>
+
+                <th className="p-4 text-left">
+                  Access Count
+                </th>
+
               </tr>
             </thead>
 
@@ -91,44 +74,60 @@ export default function AuditPage() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={6}
                     className="p-6 text-center"
                   >
                     Loading...
                   </td>
                 </tr>
-              ) : logs.length === 0 ? (
+              ) : shares.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={6}
                     className="p-6 text-center"
                   >
-                    No Activity Found
+                    No Shared Files Found
                   </td>
                 </tr>
               ) : (
-                logs.map((log, index) => (
+                shares.map((share) => (
                   <tr
-                    key={index}
+                    key={share.share_id}
                     className="border-b border-slate-800"
                   >
+
                     <td className="p-4">
-                      {log.documentTitle}
+                      {share.document_title}
                     </td>
 
                     <td className="p-4">
-                      {log.studentName}
+                      {share.shared_with_name}
                     </td>
 
                     <td className="p-4">
-                      {log.action}
+                      {share.shared_by_name}
                     </td>
 
                     <td className="p-4">
-                      {new Date(
-                        log.created_at
-                      ).toLocaleString()}
+                      {share.permission}
                     </td>
+
+                    <td className="p-4">
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm ${
+                          share.status === "active"
+                            ? "bg-green-500 text-black"
+                            : "bg-red-500 text-white"
+                        }`}
+                      >
+                        {share.status}
+                      </span>
+                    </td>
+
+                    <td className="p-4">
+                      {share.access_count || 0}
+                    </td>
+
                   </tr>
                 ))
               )}
@@ -136,7 +135,9 @@ export default function AuditPage() {
             </tbody>
 
           </table>
+
         </div>
+
       </main>
     </div>
   );
