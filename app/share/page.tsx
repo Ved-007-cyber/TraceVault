@@ -39,14 +39,10 @@ export default function FacultySharedPage() {
     setLoading(false);
   }
 
-  async function revokeAccess(
-    shareId: string
-  ) {
-
-    const confirmDelete =
-      window.confirm(
-        "Revoke access?"
-      );
+  async function revokeAccess(shareId: string) {
+    const confirmDelete = window.confirm(
+      "Revoke access?"
+    );
 
     if (!confirmDelete) return;
 
@@ -56,11 +52,18 @@ export default function FacultySharedPage() {
       .eq("share_id", shareId);
 
     if (error) {
+      console.error(error);
       alert(error.message);
       return;
     }
 
-    loadShares();
+    alert("Access Revoked Successfully");
+
+    setShares((prev) =>
+      prev.filter(
+        (share) => share.share_id !== shareId
+      )
+    );
   }
 
   const filteredShares =

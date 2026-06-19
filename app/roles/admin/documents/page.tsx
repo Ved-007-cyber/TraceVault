@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import AdminSidebar from "@/components/AdminSidebar";
+import { toast } from "sonner";
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([]);
@@ -64,44 +65,62 @@ export default function DocumentsPage() {
         .includes(search.toLowerCase())
   );
 
-  async function deleteDocument(
-    documentId: string
-  ) {
-    const confirmDelete = confirm(
-      "Delete this document?"
+  async function deleteDocument(doc: any) {
+  const confirmDelete = confirm(
+    `Delete "${doc.title}" ?`
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    // Delete physical file
+    if (doc.storage_path) {
+      const { error: storageError } =
+        await supabase.storage
+          .from("documents")
+          .remove([doc.storage_path]);
+
+      if (storageError) {
+        console.error(storageError);
+      }
+    }
+
+    // Delete related records
+    await supabase
+      .from("sharelinks")
+      .delete()
+      .eq("document_id", doc.document_id);
+
+    await supabase
+      .from("downloads")
+      .delete()
+      .eq("document_id", doc.document_id);
+
+    await supabase
+      .from("audit_logs")
+      .delete()
+      .eq("document_id", doc.document_id);
+
+    // Delete document row
+    const { error } = await supabase
+      .from("documents")
+      .delete()
+      .eq("document_id", doc.document_id);
+
+    if (error) throw error;
+
+    setDocuments((prev) =>
+      prev.filter(
+        (d) => d.document_id !== doc.document_id
+      )
     );
 
-    if (!confirmDelete) return;
-
-    try {
-      await supabase
-        .from("sharelinks")
-        .delete()
-        .eq("document_id", documentId);
-
-      await supabase
-        .from("audit_logs")
-        .delete()
-        .eq("document_id", documentId);
-
-      const { error } = await supabase
-        .from("documents")
-        .delete()
-        .eq("document_id", documentId);
-
-      if (error) {
-        alert(error.message);
-        return;
-      }
-
-      alert("Document Deleted");
-
-      loadDocuments();
-    } catch (err) {
-      console.error(err);
-      alert("Delete Failed");
-    }
+    toast.success("Document deleted");
+  } catch (err: any) {
+    console.error(err);
+    toast.error(err.message);
   }
+}
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -346,9 +365,7 @@ export default function DocumentsPage() {
 
                           <button
                             onClick={() =>
-                              deleteDocument(
-                                doc.document_id
-                              )
+                              deleteDocument(doc)
                             }
                             className="
                             px-4
