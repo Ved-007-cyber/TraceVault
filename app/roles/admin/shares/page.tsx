@@ -26,47 +26,89 @@ export default function SharesPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
+    <div className="relative min-h-screen overflow-hidden">
+
+    {/* Background Image */}
+
+    <div
+      className="
+      absolute
+      inset-0
+      bg-cover
+      bg-center
+      bg-no-repeat
+      "
+      style={{
+        backgroundImage:
+          "url('/admin-bg.jpg')",
+      }}
+    />
+    {/* Dashboard Content */}
+
+    <div className="relative z-10 flex min-h-screen">
       <AdminSidebar />
 
       <main className="flex-1 p-10 text-white">
 
-        <h1 className="text-5xl font-bold mb-8">
-          Shared Files Monitoring
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-6xl font-bold text-white">
+              Shared Files Monitoring
+            </h1>
 
-        <div className="bg-slate-900 rounded-xl overflow-hidden">
+            <p className="text-slate-400 text-white mt-2 text-lg">
+              Track document sharing activity across TraceVault
+            </p>
+          </div>
+
+        </div>
+
+        
+
+        <div className="
+          bg-slate-900/70
+          backdrop-blur-md
+
+          border
+          border-slate-800
+
+          rounded-xl
+
+          overflow-hidden
+          "
+        >
 
           <table className="w-full">
 
-            <thead>
-              <tr className="border-b border-slate-800">
+            <thead className="bg-slate-800/80">
+              <tr>
 
-                <th className="p-4 text-left">
-                  Document
-                </th>
+              <th className="px-6 py-5 text-left">
+                Document
+              </th>
 
-                <th className="p-4 text-left">
-                  Student
-                </th>
+              <th className="px-6 py-5 text-left">
+                Student
+              </th>
 
-                <th className="p-4 text-left">
-                  Faculty
-                </th>
+              <th className="px-6 py-5 text-left">
+                Faculty
+              </th>
 
-                <th className="p-4 text-left">
-                  Permission
-                </th>
+              <th className="px-6 py-5 text-left">
+                Permission
+              </th>
 
-                <th className="p-4 text-left">
-                  Status
-                </th>
+              <th className="px-6 py-5 text-left">
+                Status
+              </th>
 
-                <th className="p-4 text-left">
-                  Access Count
-                </th>
+              <th className="px-6 py-5 text-center">
+                Access Count
+              </th>
 
               </tr>
+
             </thead>
 
             <tbody>
@@ -96,8 +138,32 @@ export default function SharesPage() {
                     className="border-b border-slate-800"
                   >
 
-                    <td className="p-4">
-                      {share.document_title}
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+
+                        <div
+                          className="
+                          w-10
+                          h-10
+
+                          rounded-xl
+
+                          bg-cyan-500/20
+
+                          flex
+                          items-center
+                          justify-center
+                          "
+                        >
+                          📄
+                        </div>
+
+                        <span className="font-medium">
+                          {share.document_title}
+                        </span>
+
+                      </div>
+
                     </td>
 
                     <td className="p-4">
@@ -108,8 +174,23 @@ export default function SharesPage() {
                       {share.shared_by_name}
                     </td>
 
-                    <td className="p-4">
-                      {share.permission}
+                    <td>
+                      <span
+                        className="
+                        px-3
+                        py-1
+
+                        rounded-full
+
+                        bg-blue-500/20
+
+                        text-blue-400
+
+                        text-sm
+                        "
+                      >
+                        {share.permission}
+                      </span>
                     </td>
 
                     <td className="p-4">
@@ -124,8 +205,23 @@ export default function SharesPage() {
                       </span>
                     </td>
 
-                    <td className="p-4">
-                      {share.access_count || 0}
+                    <td className="px-6 py-5 text-center">
+                      <span
+                        className="
+                        px-4
+                        py-2
+
+                        rounded-full
+
+                        bg-cyan-500/20
+
+                        text-cyan-400
+
+                        font-bold
+                        "
+                      >
+                        {share.access_count}
+                      </span>
                     </td>
 
                   </tr>
@@ -140,5 +236,6 @@ export default function SharesPage() {
 
       </main>
     </div>
+   </div> 
   );
 }

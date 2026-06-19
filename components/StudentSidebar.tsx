@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 
 export default function StudentSidebar() {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [student, setStudent] = useState<any>(null);
 
@@ -36,70 +37,197 @@ export default function StudentSidebar() {
     router.push("/");
   }
 
-  return (
-    <aside className="w-80 min-h-screen bg-slate-950 border-r border-slate-800 flex flex-col">
+  const menuItems = [
+    {
+      name: "Dashboard",
+      href: "/roles/student",
+      icon: "🏠",
+    },
+    {
+      name: "Shared Documents",
+      href: "/roles/student/files",
+      icon: "📄",
+    },
+    {
+      name: "Downloads",
+      href: "/roles/student/downloads",
+      icon: "⬇️",
+    },
+    {
+      name: "Activity",
+      href: "/roles/student/activity",
+      icon: "🕒",
+    },
+  ];
 
-      <div className="p-8 border-b border-slate-800">
-        <h1 className="text-6xl font-bold text-cyan-400">
+  return (
+    <aside
+      className="
+      w-[360px]
+      min-w-[360px]
+      lg:w-[400px]
+      lg:min-w-[400px]
+      h-screen
+      bg-slate-950/95
+      backdrop-blur-xl
+      border-r
+      border-white/10
+      flex
+      flex-col
+      shadow-2xl
+      "
+    >
+      {/* Logo */}
+      <div className="p-8 border-b border-white/10">
+
+        <h1
+          className="
+          text-6xl
+          font-black
+          text-cyan-400
+          drop-shadow-[0_0_15px_rgba(34,211,238,0.7)]
+          "
+        >
           TraceVault
         </h1>
 
-        <p className="text-slate-400 mt-3">
+        <p className="text-slate-400 text-2xl mt-2">
           Student Portal
         </p>
+
       </div>
 
-      <nav className="flex-1 p-6 space-y-4">
+      {/* Navigation */}
+      <nav className="flex-1  px-6 py-8 space-y-4">
 
-        <Link
-          href="/roles/student"
-          className="block bg-cyan-500 text-black font-semibold px-5 py-4 rounded-xl"
-        >
-          🏠 Dashboard
-        </Link>
+        {menuItems.map((item) => (
+          <Link
+            key={item.name}
+            href={item.href}
+            className={`
+              flex items-center justify-center
+              h-[72px]
+              gap-5
+              px-8
+              py-6
+              rounded-[30px]
+              text-[28px]
+              font-semibold
+              transition-all
+              duration-300
 
-        <Link
-          href="/roles/student/files"
-          className="block text-white hover:bg-slate-900 px-5 py-4 rounded-xl"
-        >
-          📄 Shared Documents
-        </Link>
+              ${
+                pathname === item.href
+                  ? `
+                  bg-cyan-500
+                  text-black
+                  shadow-[0_0_30px_rgba(6,182,212,0.45)]
+                  `
+                  : `
+                  bg-slate-900/70
+                  text-white
+                  hover:bg-slate-800
+                  hover:translate-x-1
+                  `
+              }
+            `}
+          >
+            <span className="text-3xl">
+              {item.icon}
+            </span>
 
-        <Link
-          href="/roles/student/downloads"
-          className="block text-white hover:bg-slate-900 px-5 py-4 rounded-xl"
-        >
-          ⬇ Downloads
-        </Link>
-
-        <Link
-          href="/roles/student/activity"
-          className="block text-white hover:bg-slate-900 px-5 py-4 rounded-xl"
-        >
-          🕒 Activity
-        </Link>
+            <span>{item.name}</span>
+          </Link>
+        ))}
 
       </nav>
 
-      <div className="p-6 border-t border-slate-800">
+      {/* User Card */}
+      <div
+  className="
+  m-5
+  p-5
+  rounded-[28px]
+  bg-slate-900/90
+  border border-cyan-500/20
+  backdrop-blur-xl
+  "
+>
 
-        <h3 className="font-bold text-xl text-white">
-          {student?.full_name || "Student"}
-        </h3>
+  <Link
+    href="/roles/student/profile"
+    className="
+    flex
+    items-center
+    gap-4
+    mb-5
+    hover:opacity-90
+    transition-all
+    "
+  >
+    <img
+      src={
+        student?.profile_photo
+          ? `${student.profile_photo}?t=${Date.now()}`
+          : student?.gender === "female"
+          ? "/default-female.png"
+          : "/default-male.png"
+      }
+      alt="Profile"
+      className="
+      w-20
+      h-20
+      rounded-full
+      object-cover
+      border-[3px]
+      border-cyan-400
+      shadow-[0_0_20px_rgba(34,211,238,0.4)]
+      flex-shrink-0
+      "
+    />
 
-        <p className="text-cyan-400 mt-2 mb-6">
-          {student?.role?.toUpperCase()} • {student?.department}
-        </p>
+    <div className="min-w-0">
+      <h3
+        className="
+        text-white
+        text-xl
+        font-bold
+        truncate
+        "
+      >
+        {student?.full_name || "Student"}
+      </h3>
 
-        <button
-          onClick={handleLogout}
-          className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-lg font-semibold"
-        >
-          Logout
-        </button>
+      <p
+        className="
+        text-cyan-400
+        text-sm
+        tracking-[4px]
+        uppercase
+        "
+      >
+        STUDENT • {student?.department}
+      </p>
+    </div>
+  </Link>
 
-      </div>
-
+  <button
+    onClick={handleLogout}
+    className="
+    w-full h-10
+    bg-red-500
+    hover:bg-red-600
+    text-white
+    py-3
+    rounded-full
+    font-bold
+    transition-all
+    text-xl
+    "
+  >
+    Logout
+  </button>
+</div>
     </aside>
   );
 }

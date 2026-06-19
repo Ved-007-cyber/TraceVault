@@ -2,228 +2,586 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import Sidebar from "@/components/Sidebar";
+import { toast } from "sonner";
 
-interface Document {
-  document_id: string;
-  title: string;
-  file_type: string;
-  file_size: number;
-  file_url: string;
-  owner_email: string;
-}
 
-export default function FilesPage() {
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [filteredDocs, setFilteredDocs] = useState<Document[]>([]);
+
+export default function FacultyDocumentsPage() {
+
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [showShareModal, setShowShareModal] =
+  useState(false);
+
+const [selectedDocument, setSelectedDocument] =
+  useState<any>(null);
+
+const [students, setStudents] =
+  useState<any[]>([]);
+
+const [selectedStudent, setSelectedStudent] =
+  useState("");
+
+const [permission, setPermission] =
+  useState("view");
+
+const [expiryDate, setExpiryDate] =
+  useState("");
 
   useEffect(() => {
-    fetchDocuments();
+    loadDocuments();
+    loadStudents();
   }, []);
+   
 
-  useEffect(() => {
-    const filtered = documents.filter((doc) =>
-      doc.title.toLowerCase().includes(search.toLowerCase())
-    );
+  async function loadDocuments() {
+    try {
+      setLoading(true);
 
-    setFilteredDocs(filtered);
-  }, [search, documents]);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-  async function fetchDocuments() {
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .order("created_at", { ascending: false });
+      if (!user) return;
 
-    if (!error && data) {
-      setDocuments(data);
-      setFilteredDocs(data);
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("owner_email", user.email)
+        .order("created_at", {
+          ascending: false,
+        });
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      setDocuments(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function deleteDocument(doc: Document) {
-    const confirmDelete = confirm(
-      `Delete ${doc.title}?`
+  async function deleteDocument(doc: any) {
+    const confirmDelete = window.confirm(
+      "Delete this document?"
     );
 
     if (!confirmDelete) return;
 
-    const path = doc.file_url.split("/documents/")[1];
+    try {
+      const { error } = await supabase
+        .from("documents")
+        .delete()
+        .eq("document_id", doc.document_id);
 
-    await supabase.storage
-      .from("documents")
-      .remove([path]);
-
-    await supabase
-      .from("documents")
-      .delete()
-      .eq("document_id", doc.document_id);
-
-    await supabase.from("auditlogs").insert([
-      {
-        action: "delete",
-        document_id: doc.document_id,
-        document_title: doc.title,
-        user_email: "hafreed@tracevault.com",
-        user_name: "Hafreed",
-        user_role: "faculty",
-        details: `Deleted ${doc.title}`,
-        entry_hash: crypto.randomUUID()
+      if (error) {
+        toast.error(error.message);
+        return;
       }
-    ]);
 
-    fetchDocuments();
+      setDocuments((prev) =>
+        prev.filter(
+          (d) => d.document_id !== doc.document_id
+        )
+      );
+
+      toast("Document deleted successfully");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  async function shareDocument(doc: Document) {
-    const email = prompt(
-      "Enter recipient email"
+  const filteredDocuments = documents.filter(
+    (doc) =>
+      doc.title
+        ?.toLowerCase()
+        .includes(search.toLowerCase()) ||
+      doc.document_id
+        ?.toLowerCase()
+        .includes(search.toLowerCase())
+  );
+  async function loadStudents() {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("role", "student");
+
+    setStudents(data || []);
+  }
+
+  async function shareDocument() {
+    if (
+      !selectedStudent ||
+      !selectedDocument
+    ) {
+      return;
+    }
+
+    const student = students.find(
+      (s) => s.id === selectedStudent
     );
 
-    if (!email) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    await supabase.from("sharelinks").insert([
-      {
-        document_id: doc.document_id,
-        document_title: doc.title,
+    const { error } = await supabase
+      .from("sharelinks")
+      .insert([
+        {
+          document_id:
+            selectedDocument.document_id,
 
-        shared_with_email: email,
-        shared_with_name: email,
+          document_title:
+            selectedDocument.title,
 
-        shared_by_email:
-          "hafreed@tracevault.com",
+          shared_with_email:
+            student.email,
 
-        shared_by_name: "Hafreed",
+          shared_with_name:
+            student.full_name,
 
-        permission: "view",
+          shared_by_email:
+            user?.email,
 
-        status: "active"
-      }
-    ]);
+          permission,
 
-    await supabase.from("auditlogs").insert([
-      {
-        action: "share",
-        document_id: doc.document_id,
-        document_title: doc.title,
-        user_email: "hafreed@tracevault.com",
-        user_name: "Hafreed",
-        user_role: "faculty",
-        details: `Shared ${doc.title} with ${email}`,
-        entry_hash: crypto.randomUUID()
-      }
-    ]);
+          expires_at:
+            expiryDate || null,
+        },
+      ]);
 
-    alert("File Shared");
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await supabase
+      .from("audit_logs")
+      .insert([
+        {
+          action: "Shared",
+          document_id:
+            selectedDocument.document_id,
+          user_email: user?.email,
+        },
+      ]);
+
+    alert(
+      "Document Shared Successfully"
+    );
+
+    setShowShareModal(false);
   }
 
+
+
+
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white p-10">
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Background */}
 
-      <h1 className="text-4xl font-bold mb-8">
-        Documents
-      </h1>
-
-      <input
-        type="text"
-        placeholder="Search Documents..."
-        value={search}
-        onChange={(e) =>
-          setSearch(e.target.value)
-        }
-        className="w-full p-4 rounded-lg bg-slate-900 mb-8"
+      <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage:
+            "url('/faculty-bg')",
+        }}
       />
 
-      <div className="bg-slate-900 rounded-xl overflow-hidden">
+      <div className="relative z-10 flex min-h-screen">
+        <Sidebar />
 
-        <table className="w-full">
+        <main className="flex-1 p-10 text-white">
 
-          <thead>
-            <tr className="border-b border-slate-800">
-              <th className="p-4 text-left">
-                Title
-              </th>
+          {/* Header */}
 
-              <th className="p-4 text-left">
-                Type
-              </th>
+          <div className="mb-8">
+            <h1 className="text-6xl font-bold">
+              My Documents
+            </h1>
 
-              <th className="p-4 text-left">
-                Size
-              </th>
+            <p className="text-slate-300 text-lg mt-2">
+              Manage your uploaded files
+            </p>
+          </div>
 
-              <th className="p-4 text-left">
-                Actions
-              </th>
-            </tr>
-          </thead>
+          {/* Search */}
 
-          <tbody>
+          <input
+            type="text"
+            placeholder="Search Documents..."
+            value={search}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+            className="
+            w-full
+            h-14
+            mb-10
+            px-5
+            rounded-2xl
+            bg-slate-900/70
+            border
+            border-slate-700
+            text-white
+            focus:outline-none
+            focus:border-cyan-400
+            "
+          />
 
-            {filteredDocs.map((doc) => (
-              <tr
-                key={doc.document_id}
-                className="border-b border-slate-800"
+          {/* Table */}
+
+          <div
+            className="
+            bg-slate-900/70
+            backdrop-blur-md
+            border
+            border-slate-800
+            rounded-1xl
+            overflow-hidden
+            "
+          >
+            <table className="w-full whitespace-pre"
+            style={{tabSize:1}}>
+              <thead>
+                <tr className="border-b border-slate-800">
+                  <th className="p-4 text-left">
+                   {"\t"} Document
+                  </th>
+
+                  <th className="p-4 text-left">
+                    Department
+                  </th>
+
+                  <th className="p-4 text-left">
+                    Type
+                  </th>
+
+                  <th className="p-4 text-left">
+                    Classification
+                  </th>
+
+                  <th className="p-4 text-left">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="p-8 text-center"
+                    >
+                      Loading...
+                    </td>
+                  </tr>
+                ) : filteredDocuments.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="p-8 text-center"
+                    >
+                      No Documents Found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredDocuments.map((doc) => (
+                    <tr
+                      key={doc.document_id}
+                      className="border-b border-slate-800"
+                    >
+                      <td className="p-4">
+                        <div className="flex items-center gap-3
+                        whitespace-pre"
+                        style={{tabSize:1}}>
+
+                          <div
+                            className="
+                            w-10
+                            h-10
+                            rounded-xl
+                            bg-cyan-500/20
+                            flex
+                            items-center
+                            justify-center
+                            "
+                          >
+                            📄
+                          </div>
+
+                          <div>
+                            <p className="font-semibold">
+                              {doc.title}
+                            </p>
+
+                            <p className="text-xs text-slate-400">
+                              {doc.document_id}
+                            </p>
+                          </div>
+
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <span className="text-green-400">
+                          {doc.departments || 'CSE'}
+                        </span>
+                      </td>
+
+                      <td className="p-4">
+                        <span className="text-red-400">
+                          {doc.file_type}
+                        </span>
+                      </td>
+
+
+                      <td className="p-4">
+                        <span
+                          className="
+                          px-3
+                          py-2
+                          rounded-1xl
+                          bg-cyan-500/20
+                          text-blue-400
+                          text-lg
+                          "
+                        >
+                          {doc.classification}
+                        </span>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="flex gap-2">
+
+                          <button
+                            onClick={() =>{
+                              window.location.href=
+                                `/view/${doc.document_id}`;
+                            }}
+                            className="
+                            px-4
+                            py-2
+                            rounded-1xl
+                            bg-cyan-500
+                            text-black
+                            font-semibold
+                            "
+                          >
+                            View
+                          </button>
+
+                          <a
+                            href={doc.file_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="
+                            px-4
+                            py-2
+                            rounded-1xl
+                            bg-green-500
+                            text-black
+                            font-semibold
+                            "
+                          >
+                            Download
+                          </a>
+
+                          <button
+                            onClick={() => {
+                              setSelectedDocument(doc);
+                              setShowShareModal(true);
+                            }}
+                            className="
+                            px-4 py-2
+                            rounded-1xl
+                            bg-yellow-500
+                            text-black
+                            font-semibold
+                            "
+                          >
+                            Share
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              deleteDocument(doc)
+                            }
+                            className="
+                            px-4
+                            py-2
+                            rounded-1xl
+                            bg-red-500
+                            text-white
+                            font-semibold
+                            "
+                          >
+                            Delete
+                          </button>
+
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+
+            </table>
+          </div>
+          {showShareModal && (
+            <div
+              className="
+              fixed
+              inset-0
+              bg-black/60
+              backdrop-blur-sm
+              flex
+              items-center
+              justify-center
+              z-50
+              "
+            >
+
+              <div
+                className="
+                w-full
+                max-w-xl
+                bg-slate-900
+                border
+                border-cyan-500/30
+                rounded-3xl
+                p-8
+                "
               >
-                <td className="p-4">
-                  {doc.title}
-                </td>
 
-                <td className="p-4 uppercase">
-                  {doc.file_type}
-                </td>
+                <h2 className="text-3xl font-bold mb-2">
+                  Share Document
+                </h2>
 
-                <td className="p-4">
-                  {(doc.file_size / 1024).toFixed(1)}
-                  KB
-                </td>
+                <p className="text-slate-400 mb-6">
+                  {selectedDocument?.title}
+                </p>
 
-                <td className="p-4 flex gap-2">
+                <select
+                  value={selectedStudent}
+                  onChange={(e) =>
+                    setSelectedStudent(
+                      e.target.value
+                    )
+                  }
+                  className="
+                  w-full
+                  h-14
+                  mb-4
+                  px-4
+                  rounded-xl
+                  bg-slate-800
+                  "
+                >
+                  <option value="">
+                    Select Student
+                  </option>
 
-                  <a
-                    href={doc.file_url}
-                    target="_blank"
-                    className="bg-cyan-500 px-3 py-1 rounded"
-                  >
-                    View
-                  </a>
+                  {students.map((student) => (
+                    <option
+                      key={student.id}
+                      value={student.id}
+                    >
+                      {student.full_name}
+                    </option>
+                  ))}
+                </select>
 
-                  <a
-                    href={doc.file_url}
-                    download
-                    className="bg-green-500 px-3 py-1 rounded"
-                  >
+                <select
+                  value={permission}
+                  onChange={(e) =>
+                    setPermission(
+                      e.target.value
+                    )
+                  }
+                  className="
+                  w-full
+                  h-14
+                  mb-4
+                  px-4
+                  rounded-xl
+                  bg-slate-800
+                  "
+                >
+                  <option value="view">
+                    View Only
+                  </option>
+
+                  <option value="download">
                     Download
-                  </a>
+                  </option>
+                </select>
+
+                <input
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) =>
+                    setExpiryDate(
+                      e.target.value
+                    )
+                  }
+                  className="
+                  w-full
+                  h-14
+                  mb-6
+                  px-4
+                  rounded-xl
+                  bg-slate-800
+                  "
+                />
+
+                <div className="flex gap-4">
 
                   <button
                     onClick={() =>
-                      shareDocument(doc)
+                      setShowShareModal(false)
                     }
-                    className="bg-yellow-500 px-3 py-1 rounded"
+                    className="
+                    flex-1
+                    h-14
+                    rounded-xl
+                    bg-slate-700
+                    "
                   >
-                    Share
+                    Cancel
                   </button>
 
                   <button
-                    onClick={() =>
-                      deleteDocument(doc)
-                    }
-                    className="bg-red-500 px-3 py-1 rounded"
+                    onClick={shareDocument}
+                    className="
+                    flex-1
+                    h-14
+                    rounded-xl
+                    bg-cyan-500
+                    text-black
+                    font-bold
+                    "
                   >
-                    Delete
+                    Share Document
                   </button>
 
-                </td>
-              </tr>
-            ))}
+                </div>
 
-          </tbody>
+              </div>
 
-        </table>
-
+            </div>
+          )}
+        </main>
       </div>
-
     </div>
   );
 }

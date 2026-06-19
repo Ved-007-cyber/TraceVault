@@ -38,16 +38,20 @@ export default function Topbar() {
 
   return (
     <div className="mb-10">
-      <h1 className="text-5xl font-bold text-white">
-        Welcome back, {name}
+      <h1 className="text-5xl whitespace-pre  font-bold text-white"
+          style={{ tabSize:0}}
+      >
+        {"\t"} Welcome back, {name}
       </h1>
 
-      <p className="text-slate-400 mt-3">
-        {greeting} 👋
+      <p className="text-slate-400 mt-3 whitespace-pre"
+      style={{tabSize:1.2}}>
+        {"\t"} {greeting} 👋
       </p>
 
-      <p className="text-cyan-400 mt-2">
-        {role.toUpperCase()} • {department}
+      <p className="text-cyan-400 mt-2 whitespace-pre"
+      style={{tabSize:1}}>
+        {"\t"} {role.toUpperCase()} • {department}
       </p>
     </div>
   );

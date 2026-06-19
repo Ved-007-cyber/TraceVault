@@ -12,19 +12,75 @@ export default function StatCard({
   href,
 }: StatCardProps) {
   const card = (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 hover:border-cyan-400 transition">
-      <h3 className="text-slate-400">
+    <div
+      className="
+      h-[150px]
+
+      bg-slate-900/80
+
+      border
+      border-slate-800
+
+      rounded-3xl
+
+      flex
+      flex-col
+
+      items-center
+      justify-center
+
+      text-center
+
+      hover:border-cyan-400
+      hover:shadow-[0_0_20px_rgba(6,182,212,0.25)]
+      hover:scale-[1.02]
+
+      transition-all
+      duration-300
+      "
+    >
+      {/* Title */}
+
+      <h3
+        className="
+        text-slate-300
+
+        text-xl
+        font-medium
+
+        mb-5
+        "
+      >
         {title}
       </h3>
 
-      <p className="text-4xl font-bold mt-2 text-white">
+      {/* Value */}
+
+      <p
+        className="
+        text-7xl
+
+        font-extrabold
+
+        text-white
+
+        leading-none
+        "
+      >
         {value}
       </p>
     </div>
   );
 
   if (href) {
-    return <Link href={href}>{card}</Link>;
+    return (
+      <Link
+        href={href}
+        className="block"
+      >
+        {card}
+      </Link>
+    );
   }
 
   return card;

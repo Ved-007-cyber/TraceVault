@@ -6,11 +6,23 @@ import StudentSidebar from "@/components/StudentSidebar";
 
 export default function StudentFilesPage() {
   const [files, setFiles] = useState<any[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchFiles();
   }, []);
+
+  useEffect(() => {
+    setFilteredFiles(
+      files.filter((file) =>
+        file.document_title
+          ?.toLowerCase()
+          .includes(search.toLowerCase())
+      )
+    );
+  }, [search, files]);
 
   async function fetchFiles() {
     const {
@@ -26,142 +38,274 @@ export default function StudentFilesPage() {
 
     if (!error && data) {
       setFiles(data);
+      setFilteredFiles(data);
     }
 
     setLoading(false);
   }
 
   async function handleView(file: any) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (user) {
+    if (user) {
+      await supabase.from("audit_logs").insert({
+        user_id: user.id,
+        document_id: file.document_id,
+        action: "Viewed",
+      });
+    }
+
+    const { data } = await supabase
+      .from("documents")
+      .select("file_url")
+      .eq("document_id", file.document_id)
+      .single();
+
+    if (data?.file_url) {
+      window.open(data.file_url, "_blank");
+    }
+  }
+
+  async function handleDownload(file: any) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    await supabase.from("downloads").insert({
+      document_id: file.document_id,
+      user_id: user.id,
+    });
+
     await supabase.from("audit_logs").insert({
       user_id: user.id,
       document_id: file.document_id,
-      action: "Viewed",
+      action: "Downloaded",
     });
+
+    const { data } = await supabase
+      .from("documents")
+      .select("file_url")
+      .eq("document_id", file.document_id)
+      .single();
+
+    if (data?.file_url) {
+      window.open(data.file_url, "_blank");
+    }
   }
-
-  const { data } = await supabase
-    .from("documents")
-    .select("file_url")
-    .eq("document_id", file.document_id)
-    .single();
-
-  if (data?.file_url) {
-    window.open(data.file_url, "_blank");
-  }
-}
-
-  async function handleDownload(file: any) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) return;
-
-  // Save download history
-  await supabase.from("downloads").insert({
-    document_id: file.document_id,
-    user_id: user.id,
-  });
-
-  // Save audit log
-  await supabase.from("audit_logs").insert({
-    user_id: user.id,
-    document_id: file.document_id,
-    action: "Downloaded",
-  });
-
-  // Open file
-  if (file.file_url) {
-    window.open(file.file_url, "_blank");
-  }
-}
 
   return (
-    <div className="flex min-h-screen bg-slate-950">
-      <StudentSidebar />
+    <div className="relative min-h-screen overflow-hidden">
 
-      <main className="flex-1 p-10 text-white">
-        <h1 className="text-5xl font-bold mb-8">
-          Shared Documents
-        </h1>
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: "url('/student-bg.jpg')",
+        }}
+      />
 
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <div className="bg-slate-900 rounded-xl overflow-hidden">
+      <div className="relative z-10 flex min-h-screen">
+        <StudentSidebar />
+
+        <main className="flex-1 p-8 text-white">
+
+          <h1 className="text-6xl font-bold">
+            Shared Documents
+          </h1>
+
+          <p className="text-slate-300 mt-2">
+            View files shared by faculty
+          </p>
+
+          {/* Search */}
+          <div className="mb-6">
+            <input
+              type="text"
+              placeholder="Search documents..."
+              value={search}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
+              className="
+              w-full h-14
+              bg-slate-900/70
+              border border-slate-800
+              rounded-2xl
+              px-5
+              py-4
+              backdrop-blur-xl
+              "
+            />
+          </div>
+
+          {/* Table */}
+          <div
+            className="
+            bg-slate-900/70
+            backdrop-blur-xl
+            border border-slate-800
+            rounded-1xl
+            overflow-hidden
+            "
+          >
             <table className="w-full">
+
               <thead>
-                <tr className="border-b border-slate-800">
-                  <th className="p-4 text-left">
+                <tr className="text-xl h-10 border-b border-slate-800 bg-slate-950/40">
+
+                  <th className="p-5 text-left">
                     Document
                   </th>
 
-                  <th className="p-4 text-left">
+                  <th className="p-5 text-left">
+                    Faculty
+                  </th>
+
+                  <th className="p-5 text-left">
+                    Department
+                  </th>
+
+                  <th className="p-5 text-left">
                     Permission
                   </th>
 
-                  <th className="p-4 text-left">
-                    Action
+                  <th className="p-5 text-left">
+                    Actions
                   </th>
+
                 </tr>
               </thead>
 
               <tbody>
-                {files.map((file) => (
-                  <tr
-                    key={file.share_id}
-                    className="border-b border-slate-800"
-                  >
-                    <td className="p-4">
-                      {file.document_title}
-                    </td>
 
-                    <td className="p-4">
-                      {file.permission}
-                    </td>
-
-                    <td className="p-4 flex gap-3">
-                      <button
-                        onClick={() =>
-                          handleView(file)
-                        }
-                        className="bg-cyan-500 text-black px-4 py-2 rounded"
-                      >
-                        View
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          handleDownload(file)
-                        }
-                        className="bg-green-500 text-black px-4 py-2 rounded"
-                      >
-                        Download
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-
-                {files.length === 0 && (
+                {loading ? (
                   <tr>
                     <td
-                      colSpan={3}
-                      className="p-6 text-center text-slate-400"
+                      colSpan={5}
+                      className="p-8 text-center"
                     >
-                      No shared documents found
+                      Loading...
                     </td>
                   </tr>
+                ) : filteredFiles.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5}
+                      className="p-10 text-center text-slate-400"
+                    >
+                      📄 No Shared Documents Found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredFiles.map((file) => (
+                    <tr
+                      key={file.share_id}
+                      className="
+                      border-b border-slate-800
+                      hover:bg-slate-800/40
+                      transition
+                      "
+                    >
+                      <td className="p-5">
+                        <div className="flex items-center gap-3">
+
+                          <div
+                            className="
+                            w-12 h-12
+                            rounded-xl
+                            bg-cyan-900/50
+                            flex items-center justify-center
+                            "
+                          >
+                            📄
+                          </div>
+
+                          <div>
+                            <p className="font-semibold">
+                              {file.document_title}
+                            </p>
+
+                            <p className="text-xs text-slate-400">
+                              {file.document_id}
+                            </p>
+                          </div>
+
+                        </div>
+                      </td>
+
+                      <td className="p-5">
+                        {file.shared_by_name || "-"}
+                      </td>
+
+                      <td className="p-5">
+                        {file.department || "CSE"}
+                      </td>
+
+                      <td className="p-5">
+                        <span
+                          className="
+                          px-3 py-1
+                          rounded-1xl
+                          bg-cyan-500/20
+                          text-cyan-400
+                          text-xl
+                          "
+                        >
+                          {file.permission}
+                        </span>
+                      </td>
+
+                      <td className="p-5">
+                        <div className="flex gap-3">
+
+                          <button
+                            onClick={() =>
+                              handleView(file)
+                            }
+                            className="
+                            px-4 py-2
+                            h-8
+                            rounded-xl
+                            bg-cyan-500
+                            text-black
+                            font-semibold
+                            "
+                          >
+                            View
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleDownload(file)
+                            }
+                            className="
+                            px-4 py-2
+                            rounded-xl
+                            bg-green-500
+                            text-black
+                            font-semibold
+                            "
+                          >
+                            Download
+                          </button>
+
+                        </div>
+                      </td>
+
+                    </tr>
+                  ))
                 )}
+
               </tbody>
+
             </table>
           </div>
-        )}
-      </main>
+
+        </main>
+      </div>
     </div>
   );
 }
